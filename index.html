@@ -1,0 +1,146 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <meta name="theme-color" content="#111827" />
+  <link rel="manifest" href="manifest.webmanifest">
+  <link rel="icon" href="icons/favicon.png" sizes="32x32">
+  <title>Python Runner (PWA + Pyodide)</title>
+  <style>
+    :root {
+      --bg: #0b1220;
+      --panel: #111827;
+      --muted: #6b7280;
+      --accent: #4f46e5;
+      --text: #e5e7eb;
+      --text2: #cbd5e1;
+    }
+    * { box-sizing: border-box; }
+    html, body { height: 100%; margin: 0; }
+    body {
+      font-family: ui-sans-serif, system-ui, -apple-system, Segoe UI, Roboto, Helvetica, Arial, Apple Color Emoji, Segoe UI Emoji;
+      background: linear-gradient(180deg, #0b1220, #0b1220 80%, #0e172a);
+      color: var(--text);
+      display: flex; align-items: center; justify-content: center;
+      padding: 16px;
+    }
+    .app {
+      width: 100%; max-width: 1100px;
+      background: rgba(17,24,39, 0.85);
+      backdrop-filter: blur(6px);
+      border: 1px solid #1f2937;
+      border-radius: 18px;
+      box-shadow: 0 10px 35px rgba(0,0,0,0.5), inset 0 1px 0 rgba(255,255,255,0.03);
+      overflow: hidden;
+    }
+    header {
+      display: flex; align-items: center; justify-content: space-between;
+      padding: 14px 16px;
+      border-bottom: 1px solid #1f2937;
+      background: radial-gradient(1000px 400px at top left, rgba(79,70,229,0.16), transparent 60%);
+    }
+    header .left { display:flex; align-items:center; gap:12px; }
+    header img { width:28px; height:28px; border-radius: 6px; }
+    header h1 { font-size: 16px; margin: 0; font-weight: 600; letter-spacing: 0.2px; }
+    header .status { font-size: 12px; color: var(--muted); }
+    main { display:grid; grid-template-columns: 1fr 1fr; gap: 12px; padding: 12px; }
+    @media (max-width: 900px) { main { grid-template-columns: 1fr; } }
+    .card {
+      background: linear-gradient(180deg, rgba(31,41,55,0.6), rgba(17,24,39,0.6));
+      border: 1px solid #1f2937;
+      border-radius: 14px;
+      overflow:hidden;
+      display:flex; flex-direction: column;
+      min-height: 220px;
+    }
+    .card header {
+      display:flex; align-items:center; justify-content: space-between;
+      padding: 10px 12px;
+      border-bottom: 1px solid #1f2937;
+      background: rgba(17,24,39,0.6);
+    }
+    .card header h2 { margin: 0; font-size: 13px; color: var(--text2); font-weight: 600; }
+    .toolbar { display:flex; align-items:center; gap:8px; flex-wrap: wrap; }
+    button, .file-label {
+      appearance: none; border: 1px solid #303646; background: #0f172a; color: var(--text);
+      padding: 8px 12px; border-radius: 10px; font-size: 13px; cursor: pointer;
+      transition: transform .05s ease, background .15s ease, border-color .15s ease, opacity .15s ease;
+    }
+    button:hover, .file-label:hover { background: #0b1220; border-color: #3b4255; }
+    button:active { transform: translateY(1px); }
+    .file-input { display:none; }
+    textarea, pre, code, input[type="text"] {
+      width: 100%; border: none; outline: none; background: transparent; color: var(--text);
+      font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, "Liberation Mono", monospace;
+      font-size: 13px;
+    }
+    textarea {
+      flex:1; padding: 12px; resize: none; line-height: 1.5; min-height: 260px;
+    }
+    .output { flex:1; padding: 12px; background: #0b1220; font-size: 13px; overflow:auto; white-space: pre-wrap; }
+    .hint { padding: 10px 12px; font-size: 12px; color: var(--muted); border-top: 1px dashed #243049; }
+    .footer {
+      display:flex; align-items:center; justify-content: space-between;
+      padding: 10px 12px; border-top: 1px solid #1f2937; background: rgba(17,24,39,0.6);
+      font-size: 12px; color: var(--muted);
+    }
+    .accent { color: #a5b4fc; }
+    .pill { padding:2px 8px; border-radius: 999px; background: #0b1220; border:1px solid #243049;}
+  </style>
+</head>
+<body>
+  <div class="app" id="app">
+    <header>
+      <div class="left">
+        <img src="icons/icon-192.png" alt="icon"/>
+        <div>
+          <h1>Python Runner</h1>
+          <div class="status" id="status">Loading Pyodide…</div>
+        </div>
+      </div>
+      <div class="right">
+        <span class="pill" id="offline">offline-ready</span>
+      </div>
+    </header>
+
+    <main>
+      <section class="card">
+        <header>
+          <h2>Editor</h2>
+          <div class="toolbar">
+            <label class="file-label">
+              <input class="file-input" id="fileInput" type="file" accept=".py,text/x-python" />
+              Open .py
+            </label>
+            <button id="newBtn" title="New">New</button>
+            <button id="saveBtn" title="Save to device">Save</button>
+            <button id="exampleBtn" title="Load example">Example</button>
+          </div>
+        </header>
+        <textarea id="editor" spellcheck="false"># Write Python here or open a .py file.
+print("Hello from Pyodide!")</textarea>
+        <div class="hint">Tip: Works offline after first load. Use <span class="accent">Save</span> to download the current code as a .py file.</div>
+      </section>
+
+      <section class="card">
+        <header>
+          <h2>Runner</h2>
+          <div class="toolbar">
+            <button id="runBtn">Run ▶</button>
+            <button id="stopBtn">Stop ⏹</button>
+            <button id="clearBtn">Clear</button>
+          </div>
+        </header>
+        <pre class="output" id="output"></pre>
+        <div class="footer">
+          <div>Engine: <span class="accent">Pyodide</span> (WebAssembly CPython)</div>
+          <div><span id="pyver"></span></div>
+        </div>
+      </section>
+    </main>
+  </div>
+
+  <script defer src="app.js"></script>
+</body>
+</html>
